@@ -418,8 +418,8 @@ Features Used:
 
 ### Community
 
-- **GitHub Repository**: [http://github.com/FakeCoder01/SkyTracker]
-- **Demo Site**: [SkyTracker.fakecoder01.github.io]
+- **GitHub Repository**: [http://github.com/FakeCoder01/fakecoder01.github.io]
+- **Demo Site**: [fakecoder01.github.io]
 
 ## 🏆 Project Achievements
 
