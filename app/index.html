@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no"
+        />
+        <title>SkyTracker - Отслеживание рейсов в реальном времени</title>
+
+        <!-- Leaflet CSS -->
+        <link rel="stylesheet" href="/css/leaflet.css" />
+
+        <!-- Font Awesome for icons -->
+        <link rel="stylesheet" href="/css/all.min.css" />
+
+        <!-- Google Fonts -->
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: "Poppins", sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                overflow: hidden;
+            }
+
+            .header {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 1000;
+                background: rgba(26, 32, 53, 0.95);
+                backdrop-filter: blur(10px);
+                padding: 15px 25px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                color: #fff;
+                font-size: 24px;
+                font-weight: 700;
+            }
+
+            .logo i {
+                margin-right: 10px;
+                color: #ff6b9d;
+            }
+
+            .stats {
+                display: flex;
+                gap: 30px;
+                color: #fff;
+            }
+
+            .leaflet-control-attribution {
+                width: 0px;
+                height: 0px;
+                display: none;
+                visibility: hidden;
+                opacity: 0;
+            }
+
+            .stat-item {
+                text-align: center;
+            }
+
+            .stat-number {
+                font-size: 18px;
+                font-weight: 600;
+                color: #ff6b9d;
+            }
+
+            .stat-label {
+                font-size: 12px;
+                opacity: 0.8;
+            }
+
+            .controls {
+                display: flex;
+                gap: 15px;
+                align-items: center;
+            }
+
+            .btn {
+                background: linear-gradient(45deg, #ff6b9d, #c44569);
+                border: none;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 25px;
+                cursor: pointer;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(255, 107, 157, 0.4);
+            }
+
+            .btn-secondary {
+                background: linear-gradient(45deg, #4facfe, #00f2fe);
+            }
+
+            .btn-secondary:hover {
+                box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+            }
+
+            #map {
+                height: 100vh;
+                width: 100%;
+                z-index: 1;
+            }
+
+            .flight-modal {
+                position: fixed;
+                background: rgba(255, 255, 255, 0.98);
+                backdrop-filter: blur(20px);
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                padding: 25px;
+                min-width: 350px;
+                max-width: 400px;
+                z-index: 2000;
+                transform: scale(0.8);
+                opacity: 0;
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+
+            .flight-modal.show {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 2px solid #f0f0f0;
+            }
+
+            .flight-number {
+                font-size: 22px;
+                font-weight: 700;
+                color: #2c3e50;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .close-btn {
+                background: #ff6b9d;
+                border: none;
+                color: white;
+                width: 35px;
+                height: 35px;
+                border-radius: 50%;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.3s ease;
+            }
+
+            .close-btn:hover {
+                background: #e55a87;
+                transform: rotate(90deg);
+            }
+
+            .flight-info {
+                display: grid;
+                gap: 15px;
+            }
+
+            .info-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px;
+                background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+                border-radius: 12px;
+                transition: all 0.3s ease;
+            }
+
+            .info-row:hover {
+                transform: translateX(5px);
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            }
+
+            .info-label {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-weight: 500;
+                color: #495057;
+            }
+
+            .info-value {
+                font-weight: 600;
+                color: #2c3e50;
+            }
+
+            .altitude-indicator {
+                background: linear-gradient(45deg, #4facfe, #00f2fe);
+                color: white;
+                padding: 8px 15px;
+                border-radius: 20px;
+                font-weight: 600;
+                text-align: center;
+                margin: 15px 0;
+            }
+
+            .jetphotos-link {
+                display: block;
+                text-align: center;
+                background: linear-gradient(45deg, #667eea, #764ba2);
+                color: white;
+                padding: 12px;
+                border-radius: 12px;
+                text-decoration: none;
+                font-weight: 500;
+                margin-top: 15px;
+                transition: all 0.3s ease;
+            }
+
+            .jetphotos-link:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            }
+
+            .loading {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(255, 255, 255, 0.95);
+                padding: 30px;
+                border-radius: 20px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+                z-index: 3000;
+                display: none;
+                text-align: center;
+            }
+
+            .loading.show {
+                display: block;
+            }
+
+            .spinner {
+                width: 40px;
+                height: 40px;
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #ff6b9d;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 15px;
+            }
+
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .notification {
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: linear-gradient(45deg, #ff6b9d, #c44569);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 12px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+                z-index: 2500;
+                transform: translateX(400px);
+                transition: all 0.3s ease;
+            }
+
+            .notification.show {
+                transform: translateX(0);
+            }
+
+            /* Custom Leaflet Styles */
+            .aircraft-icon {
+                background: #ff6b9d;
+                border: 2px solid white;
+                border-radius: 50%;
+                width: 16px;
+                height: 16px;
+                box-shadow: 0 2px 8px rgba(255, 107, 157, 0.5);
+                transition: all 0.3s ease;
+            }
+
+            .aircraft-icon.selected {
+                background: #4facfe;
+                width: 20px;
+                height: 20px;
+                box-shadow: 0 4px 12px rgba(79, 172, 254, 0.6);
+            }
+
+            .leaflet-popup-content-wrapper {
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                border-radius: 15px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            }
+
+            .leaflet-popup-content {
+                margin: 15px;
+                font-family: "Poppins", sans-serif;
+            }
+
+            /* Responsive Design */
+            @media (max-width: 768px) {
+                .header {
+                    padding: 10px 15px;
+                    flex-direction: column;
+                    gap: 10px;
+                    height: auto;
+                }
+
+                .stats {
+                    gap: 15px;
+                }
+
+                .flight-modal {
+                    max-width: 90vw;
+                    margin: 20px;
+                }
+
+                #map {
+                    height: calc(100vh - 120px);
+                    margin-top: 120px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="logo">
+                <i class="fas fa-plane"></i>
+                SkyTracker
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-number" id="flightCount">0</div>
+                    <div class="stat-label">Активные полеты</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="selectedCount">0</div>
+                    <div class="stat-label">Выбрано</div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-secondary" onclick="toggleSatellite()">
+                    <i class="fas fa-satellite"></i>
+                    <span id="mapTypeText">Земля</span>
+                </button>
+                <button class="btn" onclick="centerToLocation()">
+                    <i class="fas fa-location-crosshairs"></i>
+                    Мое местоположение
+                </button>
+                <button class="btn" onclick="refreshFlights()">
+                    <i class="fas fa-refresh"></i>
+                    Обновить
+                </button>
+            </div>
+        </div>
+
+        <div id="map"></div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>Загрузка данных полета...</div>
+        </div>
+
+        <div class="notification" id="notification"></div>
+
+        <!-- Leaflet JS -->
+        <script src="/js/leaflet.js"></script>
+
+        <!-- Configuration -->
+        <script src="/js/config.js"></script>
+
+        <script>
+            // Global variables
+            let map;
+            let flightMarkers = {};
+            let openModals = [];
+            let maxModals = CONFIG.aircraft.maxOpenModals;
+            let isSatelliteView = false;
+            let refreshInterval;
+            let lastBounds = null;
+            let isLoading = false;
+
+            // Initialize the application
+            document.addEventListener("DOMContentLoaded", function () {
+                initMap();
+                getUserLocation();
+                startPeriodicRefresh();
+                initKeyboardShortcuts();
+                showNotification("Добро пожаловать в SkyTracker! 🛩️");
+            });
+
+            // Initialize the map
+            function initMap() {
+                // Use configured default location
+                map = L.map("map").setView(
+                    CONFIG.map.defaultLocation,
+                    CONFIG.map.defaultZoom,
+                );
+
+                // Add OpenStreetMap tiles
+                L.tileLayer(CONFIG.map.streetTileUrl, {
+                    attribution: CONFIG.map.streetAttribution,
+                    minZoom: CONFIG.map.minZoom,
+                    maxZoom: CONFIG.map.maxZoom,
+                }).addTo(map);
+
+                // Add event listeners
+                map.on("moveend", onMapMoveEnd);
+                map.on("zoomend", onMapMoveEnd);
+            }
+
+            // Get user's location
+            function getUserLocation() {
+                if (CONFIG.geolocation.enabled && navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        function (position) {
+                            const lat = position.coords.latitude;
+                            const lng = position.coords.longitude;
+                            map.setView([lat, lng], CONFIG.map.defaultZoom);
+                            showNotification(
+                                "📍 Находится! Показаны рейсы рядом с вами.",
+                            );
+                            loadFlights();
+                        },
+                        function (error) {
+                            if (CONFIG.development.enableLogging) {
+                                console.log("Geolocation error:", error);
+                            }
+                            showNotification(
+                                "🌍 Используется местоположение по умолчанию.",
+                            );
+                            loadFlights();
+                        },
+                        CONFIG.geolocation.options,
+                    );
+                } else {
+                    showNotification(
+                        "🌍 Используется местоположение по умолчанию.",
+                    );
+                    loadFlights();
+                }
+            }
+
+            // Toggle between satellite and street view
+            function toggleSatellite() {
+                const mapTypeText = document.getElementById("mapTypeText");
+
+                if (!isSatelliteView) {
+                    // Switch to satellite view
+                    map.eachLayer(function (layer) {
+                        if (
+                            layer._url &&
+                            layer._url.includes("openstreetmap")
+                        ) {
+                            map.removeLayer(layer);
+                        }
+                    });
+
+                    L.tileLayer(CONFIG.map.satelliteTileUrl, {
+                        attribution: CONFIG.map.satelliteAttribution,
+                    }).addTo(map);
+
+                    mapTypeText.textContent = "Улица";
+                    isSatelliteView = true;
+                } else {
+                    // Switch to street view
+                    map.eachLayer(function (layer) {
+                        if (layer._url && layer._url.includes("arcgisonline")) {
+                            map.removeLayer(layer);
+                        }
+                    });
+
+                    L.tileLayer(CONFIG.map.streetTileUrl, {
+                        attribution: CONFIG.map.streetAttribution,
+                    }).addTo(map);
+
+                    mapTypeText.textContent = "Земля";
+                    isSatelliteView = false;
+                }
+            }
+
+            // Center map to user location
+            function centerToLocation() {
+                getUserLocation();
+            }
+
+            // Handle map movement
+            function onMapMoveEnd() {
+                const bounds = map.getBounds();
+                if (!lastBounds || !bounds.equals(lastBounds)) {
+                    lastBounds = bounds;
+                    loadFlights();
+                }
+            }
+
+            // Load flights data
+            async function loadFlights() {
+                if (isLoading) return;
+
+                try {
+                    isLoading = true;
+                    showLoading(true);
+
+                    const bounds = map.getBounds();
+                    const lamin = bounds.getSouth();
+                    const lamax = bounds.getNorth();
+                    const lomin = bounds.getWest();
+                    const lomax = bounds.getEast();
+
+                    let data;
+
+                    if (CONFIG.development.useMockData) {
+                        data = getMockFlightData();
+                    } else {
+                        // Using OpenSky Network API (free)
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(
+                            () => controller.abort(),
+                            CONFIG.api.timeout,
+                        );
+
+                        const response = await fetch(
+                            `${CONFIG.api.baseUrl}?lamin=${lamin}&lamax=${lamax}&lomin=${lomin}&lomax=${lomax}`,
+                            { signal: controller.signal },
+                        );
+
+                        clearTimeout(timeoutId);
+
+                        if (!response.ok) {
+                            throw new Error(
+                                `HTTP ${response.status}: ${response.statusText}`,
+                            );
+                        }
+
+                        data = await response.json();
+                    }
+
+                    updateFlights(data.states || []);
+                } catch (error) {
+                    if (CONFIG.development.enableLogging) {
+                        console.error("Error loading flights:", error);
+                    }
+
+                    if (error.name === "AbortError") {
+                        showNotification(
+                            "⏱️ Запросить тайм-аут. Попробуйте еще раз.",
+                        );
+                    } else {
+                        showNotification(
+                            "❌ Ошибка загрузки данных полета. Попробуйте еще раз.",
+                        );
+                    }
+
+                    // Try to use mock data as fallback
+                    if (!CONFIG.development.useMockData) {
+                        updateFlights(getMockFlightData().states || []);
+                    }
+                } finally {
+                    isLoading = false;
+                    showLoading(false);
+                }
+            }
+
+            // Update flight markers on map
+            function updateFlights(flights) {
+                // Clear existing markers
+                Object.values(flightMarkers).forEach((marker) => {
+                    map.removeLayer(marker);
+                });
+                flightMarkers = {};
+
+                let flightCount = 0;
+
+                flights.forEach((flight) => {
+                    if (flight[5] && flight[6]) {
+                        // Has latitude and longitude
+                        const icao24 = flight[0];
+                        const callsign = flight[1]
+                            ? flight[1].trim()
+                            : "Неизвестный";
+                        const lat = flight[6];
+                        const lng = flight[5];
+                        const altitude = flight[7]
+                            ? Math.round(flight[7] * 3.28084)
+                            : 0; // Convert to feet
+                        const velocity = flight[9]
+                            ? Math.round(flight[9] * 2.237)
+                            : 0; // Convert to mph
+                        const heading = flight[10] || 0;
+
+                        // Create custom aircraft icon
+                        const aircraftIcon = L.divIcon({
+                            className: "aircraft-icon",
+                            iconSize: CONFIG.aircraft.icon.size,
+                            iconAnchor: [
+                                CONFIG.aircraft.icon.size[0] / 2,
+                                CONFIG.aircraft.icon.size[1] / 2,
+                            ],
+                            html: CONFIG.display.showHeadingArrow
+                                ? `<div style="transform: rotate(${heading}deg);">✈</div>`
+                                : "",
+                        });
+
+                        const marker = L.marker([lat, lng], {
+                            icon: aircraftIcon,
+                        })
+                            .addTo(map)
+                            .on("click", function () {
+                                selectAircraft(icao24, {
+                                    callsign,
+                                    lat,
+                                    lng,
+                                    altitude,
+                                    velocity,
+                                    heading,
+                                    icao24,
+                                });
+                            });
+
+                        flightMarkers[icao24] = marker;
+                        flightCount++;
+                    }
+                });
+
+                document.getElementById("flightCount").textContent =
+                    flightCount;
+            }
+
+            // Select aircraft and show modal
+            function selectAircraft(icao24, flightData) {
+                if (openModals.length >= maxModals) {
+                    showNotification(
+                        `✈️ Одновременно можно отобразить максимум ${maxModals} деталей самолета.`,
+                    );
+                    return;
+                }
+
+                // Check if modal already exists
+                if (openModals.find((m) => m.icao24 === icao24)) {
+                    showNotification(
+                        "✈️ Подробная информация о самолете уже отображена.",
+                    );
+                    return;
+                }
+
+                // Update marker appearance
+                Object.keys(flightMarkers).forEach((id) => {
+                    const marker = flightMarkers[id];
+                    const icon = marker.getIcon();
+                    if (id === icao24) {
+                        icon.options.className = "aircraft-icon selected";
+                        icon.options.iconSize =
+                            CONFIG.aircraft.icon.selectedSize;
+                    } else {
+                        icon.options.className = "aircraft-icon";
+                        icon.options.iconSize = CONFIG.aircraft.icon.size;
+                    }
+                    marker.setIcon(icon);
+                });
+
+                createFlightModal(flightData);
+                updateSelectedCount();
+            }
+
+            // Create flight details modal
+            function createFlightModal(flight) {
+                const modal = document.createElement("div");
+                modal.className = "flight-modal";
+                modal.style.left = `${20 + openModals.length * 50}px`;
+                modal.style.top = `${100 + openModals.length * 50}px`;
+
+                const aircraftType = "Премиум-функция"; // OpenSky doesn't provide aircraft type in free tier
+                const airline = flight.callsign.substring(0, 3).toUpperCase();
+
+                modal.innerHTML = `
+                  <div class="modal-header">
+                      <div class="flight-number">
+                          <i class="fas fa-plane"></i>
+                          ${flight.callsign}
+                      </div>
+                      <button class="close-btn" onclick="closeModal(this)">
+                          <i class="fas fa-times"></i>
+                      </button>
+                  </div>
+
+                  <div class="flight-info">
+                      <div class="info-row">
+                          <div class="info-label">
+                              <i class="fas fa-barcode"></i>
+                              ICAO
+                          </div>
+                          <div class="info-value">${flight.icao24.toUpperCase()}</div>
+                      </div>
+
+                      <div class="info-row">
+                          <div class="info-label">
+                              <i class="fas fa-map-marker-alt"></i>
+                              Позиция
+                          </div>
+                          <div class="info-value">${flight.lat.toFixed(CONFIG.display.coordinateDecimals)}, ${flight.lng.toFixed(CONFIG.display.coordinateDecimals)}</div>
+                      </div>
+
+                      <div class="altitude-indicator">
+                          <i class="fas fa-arrow-up"></i>
+                          ${flight.altitude.toLocaleString()} ft
+                      </div>
+
+                      <div class="info-row">
+                          <div class="info-label">
+                              <i class="fas fa-tachometer-alt"></i>
+                              Путевая скорость
+                          </div>
+                          <div class="info-value">${formatNumber(flight.velocity)} ${getSpeedUnit()}</div>
+                      </div>
+
+                      <div class="info-row">
+                          <div class="info-label">
+                              <i class="fas fa-compass"></i>
+                              Курс
+                          </div>
+                          <div class="info-value">${Math.round(flight.heading)}°</div>
+                      </div>
+
+                      <div class="info-row">
+                          <div class="info-label">
+                              <i class="fas fa-building"></i>
+                              Авиакомпания
+                          </div>
+                          <div class="info-value">${airline}</div>
+                      </div>
+                  </div>
+
+                  <a href="${CONFIG.externalLinks.jetPhotosUrl}${flight.icao24}"
+                    target="_blank" class="jetphotos-link">
+                      <i class="fas fa-camera"></i>
+                      Посмотреть фотографии самолетов
+                  </a>
+                `;
+
+                document.body.appendChild(modal);
+                const modalHeader = modal.querySelector(".modal-header");
+                let isDragging = false;
+                let offsetX, offsetY;
+
+                modalHeader.addEventListener("mousedown", (e) => {
+                    isDragging = true;
+                    offsetX = e.clientX - modal.getBoundingClientRect().left;
+                    offsetY = e.clientY - modal.getBoundingClientRect().top;
+                    modal.style.cursor = "grabbing";
+                });
+
+                document.addEventListener("mousemove", (e) => {
+                    if (!isDragging) return;
+                    modal.style.left = `${e.clientX - offsetX}px`;
+                    modal.style.top = `${e.clientY - offsetY}px`;
+                });
+
+                document.addEventListener("mouseup", () => {
+                    isDragging = false;
+                    modal.style.cursor = "grab";
+                });
+
+                // Animate modal appearance
+                setTimeout(() => {
+                    modal.classList.add("show");
+                }, 100);
+
+                openModals.push({
+                    element: modal,
+                    icao24: flight.icao24,
+                });
+            }
+
+            // Close modal
+            function closeModal(closeBtn) {
+                const modal = closeBtn.closest(".flight-modal");
+                const modalData = openModals.find((m) => m.element === modal);
+
+                if (modalData) {
+                    // Reset marker appearance
+                    const marker = flightMarkers[modalData.icao24];
+                    if (marker) {
+                        const icon = marker.getIcon();
+                        icon.options.className = "aircraft-icon";
+                        marker.setIcon(icon);
+                    }
+
+                    // Remove modal
+                    modal.classList.remove("show");
+                    setTimeout(() => {
+                        document.body.removeChild(modal);
+                    }, 300);
+
+                    // Remove from openModals array
+                    openModals = openModals.filter((m) => m !== modalData);
+                    updateSelectedCount();
+                }
+            }
+
+            // Update selected count
+            function updateSelectedCount() {
+                document.getElementById("selectedCount").textContent =
+                    openModals.length;
+            }
+
+            // Show/hide loading indicator
+            function showLoading(show) {
+                const loading = document.getElementById("loading");
+                if (show) {
+                    loading.classList.add("show");
+                } else {
+                    loading.classList.remove("show");
+                }
+            }
+
+            // Show notification
+            function showNotification(message) {
+                const notification = document.getElementById("notification");
+                notification.textContent = message;
+                notification.classList.add("show");
+
+                setTimeout(() => {
+                    notification.classList.remove("show");
+                }, 3000);
+            }
+
+            // Refresh flights manually
+            function refreshFlights() {
+                loadFlights();
+                showNotification("Обновление данных о рейсах...");
+            }
+
+            // Start periodic refresh
+            function startPeriodicRefresh() {
+                if (CONFIG.api.autoRefresh) {
+                    refreshInterval = setInterval(() => {
+                        loadFlights();
+                    }, CONFIG.api.refreshInterval);
+                }
+            }
+
+            // Initialize keyboard shortcuts
+            function initKeyboardShortcuts() {
+                if (!CONFIG.features.keyboardShortcuts) return;
+
+                document.addEventListener("keydown", function (event) {
+                    // Don't trigger shortcuts when typing in inputs
+                    if (
+                        event.target.tagName === "INPUT" ||
+                        event.target.tagName === "TEXTAREA"
+                    ) {
+                        return;
+                    }
+
+                    switch (event.code) {
+                        case CONFIG.shortcuts.refresh:
+                            event.preventDefault();
+                            refreshFlights();
+                            break;
+                        case CONFIG.shortcuts.toggleSatellite:
+                            event.preventDefault();
+                            toggleSatellite();
+                            break;
+                        case CONFIG.shortcuts.centerLocation:
+                            event.preventDefault();
+                            centerToLocation();
+                            break;
+                        case CONFIG.shortcuts.closeAllModals:
+                            event.preventDefault();
+                            closeAllModals();
+                            break;
+                    }
+                });
+            }
+
+            // Close all modals
+            function closeAllModals() {
+                const modals = [...openModals];
+                modals.forEach((modal) => {
+                    const closeBtn = modal.element.querySelector(".close-btn");
+                    if (closeBtn) closeModal(closeBtn);
+                });
+            }
+
+            // Format numbers with thousands separator
+            function formatNumber(num) {
+                if (!CONFIG.display.useThousandsSeparator)
+                    return num.toString();
+                return num.toLocaleString();
+            }
+
+            // Get speed unit text
+            function getSpeedUnit() {
+                switch (CONFIG.display.speedUnit) {
+                    case "kmh":
+                        return "km/h";
+                    case "knots":
+                        return "kts";
+                    default:
+                        return "mph";
+                }
+            }
+
+            // Mock flight data for testing
+            function getMockFlightData() {
+                const bounds = map.getBounds();
+                const centerLat = bounds.getCenter().lat;
+                const centerLng = bounds.getCenter().lng;
+
+                const mockFlights = [];
+                for (let i = 0; i < 10; i++) {
+                    mockFlights.push([
+                        `mock${i}`, // icao24
+                        `TEST${100 + i}`, // callsign
+                        "Mock Country", // origin_country
+                        Date.now() / 1000, // time_position
+                        Date.now() / 1000, // last_contact
+                        centerLng + (Math.random() - 0.5) * 0.1, // longitude
+                        centerLat + (Math.random() - 0.5) * 0.1, // latitude
+                        Math.random() * 10000 + 1000, // baro_altitude
+                        false, // on_ground
+                        Math.random() * 200 + 100, // velocity
+                        Math.random() * 360, // true_track
+                        0, // vertical_rate
+                        null, // sensors
+                        Math.random() * 10000 + 1000, // geo_altitude
+                        null, // squawk
+                        false, // spi
+                        0, // position_source
+                    ]);
+                }
+
+                return { states: mockFlights };
+            }
+
+            // Enhanced error handling
+            window.addEventListener("error", function (event) {
+                if (CONFIG.development.enableLogging) {
+                    console.error("Global error:", event.error);
+                }
+                showNotification("⚠️ An unexpected error occurred.");
+            });
+
+            // Handle offline/online status
+            window.addEventListener("online", function () {
+                showNotification("🌐 Connection restored. Refreshing data...");
+                loadFlights();
+            });
+
+            window.addEventListener("offline", function () {
+                showNotification("📡 Connection lost. Using cached data.");
+            });
+
+            // Cleanup on page unload
+            window.addEventListener("beforeunload", function () {
+                if (refreshInterval) {
+                    clearInterval(refreshInterval);
+                }
+            });
+        </script>
+    </body>
+</html>
